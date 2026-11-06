@@ -18,6 +18,8 @@ const reviewStatusLabels = {
   edited: '수정 후 승인',
 }
 
+const completedReviewStatuses = ['approved', 'edited']
+
 function sortReviewItems(elements) {
   return [...elements].sort((first, second) => Number(second.flagged) - Number(first.flagged))
 }
@@ -28,33 +30,104 @@ function ReviewPage() {
   const [document, setDocument] = useState(mockDocument)
   const [selectedPageId, setSelectedPageId] = useState(firstPage.id)
   const [selectedElementId, setSelectedElementId] = useState(firstElement?.id ?? null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [draftAlt, setDraftAlt] = useState('')
+  const [draftDescription, setDraftDescription] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
 
   const selectedPage = document.pages.find((page) => page.id === selectedPageId)
   const reviewItems = sortReviewItems(selectedPage.elements)
   const selectedElement = reviewItems.find((element) => element.id === selectedElementId) ?? reviewItems[0]
   const requiredItems = document.pages.flatMap((page) => page.elements).filter((element) => element.flagged)
-  const reviewedItems = requiredItems.filter((element) => ['approved', 'edited'].includes(element.review_status))
+  const reviewedItems = requiredItems.filter((element) => completedReviewStatuses.includes(element.review_status))
+  const canPublish = requiredItems.every((element) => completedReviewStatuses.includes(element.review_status))
+  const isPublished = document.status === 'published'
+
+  function resetEditForm() {
+    setIsEditing(false)
+    setDraftAlt('')
+    setDraftDescription('')
+  }
 
   function selectPage(page) {
     const pageItems = sortReviewItems(page.elements)
     setSelectedPageId(page.id)
     setSelectedElementId(pageItems[0]?.id ?? null)
+    setStatusMessage('')
+    resetEditForm()
   }
 
-  function approveSelectedElement() {
-    if (!selectedElement) return
+  function selectElement(element) {
+    setSelectedElementId(element.id)
+    setStatusMessage('')
+    resetEditForm()
+  }
 
+  function updateElement(elementId, changes) {
     setDocument((currentDocument) => ({
       ...currentDocument,
       pages: currentDocument.pages.map((page) => ({
         ...page,
         elements: page.elements.map((element) => (
-          element.id === selectedElement.id
-            ? { ...element, review_status: 'approved' }
-            : element
+          element.id === elementId ? { ...element, ...changes } : element
         )),
       })),
     }))
+  }
+
+  function approveSelectedElement() {
+    if (!selectedElement) return
+
+    updateElement(selectedElement.id, { review_status: 'approved' })
+    setStatusMessage(`${selectedElement.title} 설명을 승인했습니다.`)
+  }
+
+  function startEditing() {
+    setDraftAlt(selectedElement.alt)
+    setDraftDescription(selectedElement.description)
+    setStatusMessage('')
+    setIsEditing(true)
+  }
+
+  function cancelEditing() {
+    resetEditForm()
+    setStatusMessage('설명 수정을 취소했습니다.')
+  }
+
+  function saveEditedElement(event) {
+    event.preventDefault()
+
+    const trimmedAlt = draftAlt.trim()
+    const trimmedDescription = draftDescription.trim()
+
+    if (!trimmedAlt || !trimmedDescription) {
+      setStatusMessage('한 줄 설명과 상세 설명을 모두 입력해 주세요.')
+      return
+    }
+
+    const aiOriginal = selectedElement.ai_original ?? {
+      alt: selectedElement.alt,
+      description: selectedElement.description,
+    }
+
+    updateElement(selectedElement.id, {
+      alt: trimmedAlt,
+      description: trimmedDescription,
+      ai_original: aiOriginal,
+      review_status: 'edited',
+    })
+    resetEditForm()
+    setStatusMessage(`${selectedElement.title} 설명을 수정하고 승인했습니다.`)
+  }
+
+  function publishDocument() {
+    if (!canPublish || isPublished) return
+
+    setDocument((currentDocument) => ({
+      ...currentDocument,
+      status: 'published',
+    }))
+    setStatusMessage('검수가 완료된 자료를 학생에게 공개했습니다.')
   }
 
   return (
@@ -65,10 +138,24 @@ function ReviewPage() {
           <h1 id="review-heading">{document.title} 검수</h1>
           <p>원본 자료와 AI 설명을 비교해 주세요.</p>
         </div>
-        <p className="review-count" aria-live="polite">
-          검수 완료 {reviewedItems.length} / {requiredItems.length}
-        </p>
+        <div className="review-summary">
+          <p className="review-count">
+            검수 완료 {reviewedItems.length} / {requiredItems.length}
+          </p>
+          <button
+            type="button"
+            className="publish-button"
+            disabled={!canPublish || isPublished}
+            onClick={publishDocument}
+          >
+            {isPublished ? '공개 완료' : '학생에게 공개'}
+          </button>
+        </div>
       </div>
+
+      <p className="review-status-message" aria-live="polite">
+        {statusMessage}
+      </p>
 
       <div className="review-workspace">
         <nav className="review-panel page-navigation" aria-label="문서 페이지 선택">
@@ -124,7 +211,7 @@ function ReviewPage() {
                     key={element.id}
                     className="review-item-button"
                     aria-pressed={selectedElement.id === element.id}
-                    onClick={() => setSelectedElementId(element.id)}
+                    onClick={() => selectElement(element)}
                   >
                     {reviewStatusLabels[element.review_status] ?? element.review_status} · {element.title}
                   </button>
@@ -141,7 +228,7 @@ function ReviewPage() {
                 </div>
 
                 {selectedElement.flag_reasons.length > 0 && (
-                  <div className="warning-message" role="status">
+                  <div className="warning-message">
                     <strong>검수 필요 사유</strong>
                     <ul>
                       {selectedElement.flag_reasons.map((reason) => (
@@ -151,56 +238,100 @@ function ReviewPage() {
                   </div>
                 )}
 
-                <dl>
-                  <div>
-                    <dt>한 줄 설명</dt>
-                    <dd>{selectedElement.alt}</dd>
-                  </div>
-                  <div>
-                    <dt>상세 설명</dt>
-                    <dd>{selectedElement.description}</dd>
-                  </div>
-                  <div>
-                    <dt>그림 속 글자</dt>
-                    <dd>{selectedElement.labels.join(', ') || '없음'}</dd>
-                  </div>
-                </dl>
+                {isEditing ? (
+                  <form className="edit-description-form" onSubmit={saveEditedElement}>
+                    <label htmlFor="edit-alt">한 줄 설명</label>
+                    <textarea
+                      id="edit-alt"
+                      value={draftAlt}
+                      onChange={(event) => setDraftAlt(event.target.value)}
+                      rows="3"
+                      required
+                    />
 
-                {selectedElement.table && (
-                  <div className="table-wrapper">
-                    <table>
-                      <caption className="sr-only">{selectedElement.title}</caption>
-                      <thead>
-                        <tr>
-                          {selectedElement.table.headers.map((header) => (
-                            <th scope="col" key={header}>{header}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedElement.table.rows.map((row, rowIndex) => (
-                          <tr key={`${selectedElement.id}-${rowIndex}`}>
-                            {row.map((cell, cellIndex) => (
-                              <td key={`${cell}-${cellIndex}`}>{cell}</td>
+                    <label htmlFor="edit-description">상세 설명</label>
+                    <textarea
+                      id="edit-description"
+                      value={draftDescription}
+                      onChange={(event) => setDraftDescription(event.target.value)}
+                      rows="7"
+                      required
+                    />
+
+                    <div className="edit-form-actions">
+                      <button type="button" className="secondary-button" onClick={cancelEditing}>
+                        취소
+                      </button>
+                      <button type="submit" className="approve-button">
+                        수정 후 승인
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <dl>
+                      <div>
+                        <dt>한 줄 설명</dt>
+                        <dd>{selectedElement.alt}</dd>
+                      </div>
+                      <div>
+                        <dt>상세 설명</dt>
+                        <dd>{selectedElement.description}</dd>
+                      </div>
+                      <div>
+                        <dt>그림 속 글자</dt>
+                        <dd>{selectedElement.labels.join(', ') || '없음'}</dd>
+                      </div>
+                    </dl>
+
+                    {selectedElement.table && (
+                      <div className="table-wrapper">
+                        <table>
+                          <caption className="sr-only">{selectedElement.title}</caption>
+                          <thead>
+                            <tr>
+                              {selectedElement.table.headers.map((header) => (
+                                <th scope="col" key={header}>{header}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedElement.table.rows.map((row, rowIndex) => (
+                              <tr key={`${selectedElement.id}-${rowIndex}`}>
+                                {row.map((cell, cellIndex) => (
+                                  <td key={`${cell}-${cellIndex}`}>{cell}</td>
+                                ))}
+                              </tr>
                             ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
-                {selectedElement.flagged && (
-                  <div className="review-actions">
-                    <button
-                      type="button"
-                      className="approve-button"
-                      disabled={selectedElement.review_status === 'approved'}
-                      onClick={approveSelectedElement}
-                    >
-                      {selectedElement.review_status === 'approved' ? '승인 완료' : '이 설명 승인'}
-                    </button>
-                  </div>
+                    {selectedElement.ai_original && (
+                      <details className="ai-original">
+                        <summary>수정 전 AI 원문 보기</summary>
+                        <p><strong>한 줄 설명</strong>{selectedElement.ai_original.alt}</p>
+                        <p><strong>상세 설명</strong>{selectedElement.ai_original.description}</p>
+                      </details>
+                    )}
+
+                    <div className="review-actions">
+                      <button type="button" className="secondary-button" onClick={startEditing}>
+                        설명 수정
+                      </button>
+                      {selectedElement.flagged && (
+                        <button
+                          type="button"
+                          className="approve-button"
+                          disabled={completedReviewStatuses.includes(selectedElement.review_status)}
+                          onClick={approveSelectedElement}
+                        >
+                          {completedReviewStatuses.includes(selectedElement.review_status) ? '검수 완료' : '이 설명 승인'}
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </article>
             </>

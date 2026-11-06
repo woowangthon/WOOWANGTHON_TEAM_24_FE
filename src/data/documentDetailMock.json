@@ -32,10 +32,10 @@
           "description": "왼쪽의 Client와 오른쪽의 Server가 한 개의 선으로 연결되어 있습니다.",
           "labels": ["Client", "Server"],
           "table": null,
-          "uncertain_parts": [],
-          "flagged": false,
-          "flag_reasons": [],
-          "review_status": "auto_passed"
+          "uncertain_parts": ["연결선의 방향이 표시되지 않습니다."],
+          "flagged": true,
+          "flag_reasons": ["R1: 연결선의 방향 확인이 필요합니다."],
+          "review_status": "needs_review"
         },
         {
           "id": 103,
@@ -51,6 +51,19 @@
               ["203.0.113.0/24", "198.51.100.2"]
             ]
           },
+          "uncertain_parts": [],
+          "flagged": true,
+          "flag_reasons": ["R2: 그림 속 글자 \"198.51.100.2\"를 원문에서 찾지 못함"],
+          "review_status": "needs_review"
+        },
+        {
+          "id": 104,
+          "type": "diagram",
+          "title": "TCP 데이터 전송",
+          "alt": "연결 설정 뒤 데이터를 전송하는 과정",
+          "description": "TCP 연결이 설정되면 클라이언트와 서버가 데이터를 주고받습니다.",
+          "labels": ["Client", "Server", "Data"],
+          "table": null,
           "uncertain_parts": [],
           "flagged": false,
           "flag_reasons": [],

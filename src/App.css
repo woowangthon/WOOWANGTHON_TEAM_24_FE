@@ -82,6 +82,47 @@ main h1 {
   font-weight: 700;
 }
 
+.review-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-status-message {
+  min-height: 24px;
+  margin: -16px 0 16px;
+  color: #3730a3;
+  font-weight: 700;
+}
+
+.publish-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #166534;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #166534;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.publish-button:hover:not(:disabled) {
+  background: #14532d;
+}
+
+.publish-button:focus-visible {
+  outline: 3px solid rgba(22, 101, 52, 0.3);
+  outline-offset: 3px;
+}
+
+.publish-button:disabled {
+  border-color: #d1d5db;
+  color: #6b7280;
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
 .review-workspace {
   display: grid;
   grid-template-columns: 150px minmax(280px, 0.9fr) minmax(340px, 1.1fr);
@@ -312,9 +353,31 @@ main h1 {
 .review-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
+}
+
+.secondary-button {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  color: #374151;
+  background: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #f3f4f6;
+}
+
+.secondary-button:focus-visible {
+  outline: 3px solid rgba(79, 70, 229, 0.25);
+  outline-offset: 3px;
 }
 
 .approve-button {
@@ -343,6 +406,61 @@ main h1 {
   color: #166534;
   background: #dcfce7;
   cursor: not-allowed;
+}
+
+.edit-description-form {
+  display: grid;
+  gap: 10px;
+}
+
+.edit-description-form label {
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+.edit-description-form textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  color: #111827;
+  background: #ffffff;
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.edit-description-form textarea:focus {
+  border-color: #4f46e5;
+  outline: 3px solid rgba(79, 70, 229, 0.2);
+}
+
+.edit-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ai-original {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1px solid #dbe1ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ai-original summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-original p {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  color: #374151;
+  line-height: 1.6;
 }
 
 .empty-elements {
@@ -399,6 +517,16 @@ main h1 {
   .review-heading-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .review-summary {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .review-count {
+    text-align: center;
   }
 
   .review-workspace {

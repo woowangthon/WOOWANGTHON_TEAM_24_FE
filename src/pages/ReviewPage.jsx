@@ -308,7 +308,7 @@ function ReviewPage() {
                       </div>
                     )}
 
-                    {selectedElement.ai_original && (
+                    {selectedElement.review_status === 'edited' && selectedElement.ai_original && (
                       <details className="ai-original">
                         <summary>수정 전 AI 원문 보기</summary>
                         <p><strong>한 줄 설명</strong>{selectedElement.ai_original.alt}</p>

@@ -42,15 +42,15 @@ function copyDocument(document) {
   return { ...document }
 }
 
-async function request(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`)
+async function request(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, options)
 
   if (!response.ok) {
     let message = '문서 정보를 불러오지 못했습니다.'
 
     try {
       const body = await response.json()
-      message = body.detail ?? message
+      message = typeof body.detail === 'string' ? body.detail : message
     } catch {
       // JSON이 아닌 오류 응답에는 기본 안내 문구를 사용한다.
     }
@@ -59,6 +59,36 @@ async function request(path) {
   }
 
   return response.json()
+}
+
+export async function uploadDocument({ course, title, file }) {
+  if (!USE_MOCK_API) {
+    const formData = new FormData()
+    formData.append('course', course)
+    formData.append('title', title)
+    formData.append('file', file)
+
+    return request('/api/documents', {
+      method: 'POST',
+      body: formData,
+    })
+  }
+
+  await wait(700)
+  const nextId = Math.max(...mockDocuments.map(({ id }) => id), 0) + 1
+  mockDocuments.unshift({
+    id: nextId,
+    title,
+    course,
+    filename: file.name,
+    status: 'processing',
+    processed_pages: 0,
+    total_pages: 8,
+    review_count: 0,
+    student_report_count: null,
+  })
+
+  return { id: nextId }
 }
 
 export async function getDocuments() {

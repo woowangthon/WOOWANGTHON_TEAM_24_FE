@@ -295,6 +295,212 @@ main h1 {
   background: #fee2e2;
 }
 
+.upload-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(380px, 1.1fr);
+  gap: 56px;
+  align-items: center;
+}
+
+.upload-introduction h1 {
+  margin-bottom: 20px;
+  font-size: clamp(36px, 5vw, 58px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+
+.upload-introduction > p:last-of-type {
+  max-width: 520px;
+  color: #475569;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.upload-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-requirements li {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #3730a3;
+  background: #eef2ff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.upload-form {
+  min-width: 0;
+  padding: 32px;
+  border: 1px solid #dbe1ea;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+}
+
+.upload-form-heading {
+  margin-bottom: 26px;
+}
+
+.upload-form-heading h2 {
+  margin: 0 0 8px;
+  font-size: 26px;
+}
+
+.upload-form-heading p {
+  margin: 0;
+  color: #64748b;
+}
+
+.form-field {
+  margin-top: 20px;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.form-field label span {
+  color: #dc2626;
+}
+
+.form-field input[type='text'] {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 13px;
+  border: 1px solid #94a3b8;
+  border-radius: 9px;
+  color: #111827;
+  background: #ffffff;
+  font: inherit;
+}
+
+.form-field input[type='text']:focus,
+.form-field input[type='file']:focus-visible {
+  border-color: #4f46e5;
+  outline: 3px solid rgba(79, 70, 229, 0.2);
+  outline-offset: 1px;
+}
+
+.form-field input[aria-invalid='true'] {
+  border-color: #dc2626;
+}
+
+.file-input-area {
+  overflow: hidden;
+  padding: 18px;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.file-input-area--error {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.file-input-area input[type='file'] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  color: #374151;
+  font: inherit;
+}
+
+.file-input-area input[type='file']::file-selector-button {
+  min-height: 38px;
+  margin-right: 12px;
+  padding: 7px 12px;
+  border: 1px solid #6366f1;
+  border-radius: 7px;
+  color: #3730a3;
+  background: #eef2ff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.file-input-area p {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.selected-file {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  font-size: 14px;
+}
+
+.selected-file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-file strong {
+  flex: 0 0 auto;
+}
+
+.field-error,
+.form-error-summary {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.field-error {
+  margin: 7px 0 0;
+  font-size: 14px;
+}
+
+.form-error-summary {
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+}
+
+.upload-submit-button {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 26px;
+  border: 1px solid #4f46e5;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #4f46e5;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.upload-submit-button:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.upload-submit-button:focus-visible {
+  outline: 3px solid rgba(79, 70, 229, 0.35);
+  outline-offset: 3px;
+}
+
+.upload-submit-button:disabled {
+  border-color: #a5b4fc;
+  background: #a5b4fc;
+  cursor: wait;
+}
+
 .progress-heading-row,
 .dashboard-heading,
 .document-card-heading,
@@ -800,6 +1006,10 @@ progress::-webkit-progress-value {
 }
 
 @media (max-width: 1000px) {
+  .upload-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .review-workspace {
     grid-template-columns: 140px minmax(0, 1fr);
   }
@@ -851,6 +1061,10 @@ progress::-webkit-progress-value {
   .progress-card-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .upload-form {
+    padding: 24px 20px;
   }
 
   .progress-steps,

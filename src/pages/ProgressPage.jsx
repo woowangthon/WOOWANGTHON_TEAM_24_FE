@@ -1,10 +1,136 @@
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { getDocumentProgress } from '../api/documents.js'
+import ProgressSteps from '../components/common/ProgressSteps.jsx'
+import StatusBadge from '../components/common/StatusBadge.jsx'
+
 function ProgressPage() {
+  const { id } = useParams()
+  const [progress, setProgress] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadProgress = useCallback(async ({ showLoading = false } = {}) => {
+    if (showLoading) {
+      setIsLoading(true)
+    }
+
+    try {
+      const nextProgress = await getDocumentProgress(id)
+      setProgress(nextProgress)
+      setError('')
+    } catch (loadError) {
+      setError(loadError.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    const initialLoadId = window.setTimeout(
+      () => loadProgress({ showLoading: true }),
+      0,
+    )
+
+    return () => window.clearTimeout(initialLoadId)
+  }, [loadProgress])
+
+  useEffect(() => {
+    if (progress?.status !== 'processing') {
+      return undefined
+    }
+
+    const intervalId = window.setInterval(loadProgress, 2000)
+    return () => window.clearInterval(intervalId)
+  }, [loadProgress, progress?.status])
+
+  if (isLoading && !progress) {
+    return <p className="state-message" role="status">진행 상태를 불러오는 중입니다.</p>
+  }
+
+  if (error && !progress) {
+    return (
+      <section className="state-message state-message--error" role="alert">
+        <h1>진행 상태를 불러오지 못했습니다</h1>
+        <p>{error}</p>
+        <button className="secondary-button" type="button" onClick={() => loadProgress({ showLoading: true })}>
+          다시 시도
+        </button>
+      </section>
+    )
+  }
+
+  const processedPages = progress?.processed_pages ?? 0
+  const totalPages = progress?.total_pages ?? 0
+  const percentage = totalPages === 0
+    ? 0
+    : Math.round((processedPages / totalPages) * 100)
+  const isFailed = progress?.status === 'failed'
+
   return (
-    <div>
-      <h1>자료 변환 진행 화면</h1>
-      <p>AI가 강의자료를 분석하고 있습니다.</p>
-    </div>
-  );
+    <section className="progress-page">
+      <div className="progress-heading-row">
+        <div>
+          <p className="eyebrow">문서 #{id}</p>
+          <h1>강의자료 처리 현황</h1>
+          <p>페이지를 벗어나지 않아도 2초마다 진행 상태가 자동으로 갱신됩니다.</p>
+        </div>
+        <StatusBadge status={progress.status} />
+      </div>
+
+      {error && (
+        <p className="inline-error" role="alert">
+          최신 상태를 가져오지 못했습니다. 기존 정보를 표시합니다: {error}
+        </p>
+      )}
+
+      {isFailed ? (
+        <section className="progress-card progress-failed" role="alert">
+          <h2>문서 분석에 실패했습니다</h2>
+          <p>잠시 후 다시 조회해 주세요. 계속 실패하면 PDF 파일을 확인해 주세요.</p>
+          <button className="secondary-button" type="button" onClick={() => loadProgress({ showLoading: true })}>
+            다시 조회
+          </button>
+        </section>
+      ) : (
+        <>
+          <ProgressSteps status={progress.status} />
+
+          <section className="progress-card" aria-labelledby="page-progress-title">
+            <div className="progress-card-heading">
+              <div>
+                <p className="progress-card-label">페이지 처리 현황</p>
+                <h2 id="page-progress-title">{processedPages} / {totalPages}페이지</h2>
+              </div>
+              <strong className="progress-percentage">{percentage}%</strong>
+            </div>
+            <progress value={processedPages} max={totalPages || 1}>
+              {percentage}%
+            </progress>
+            <p className="progress-help" aria-live="polite">
+              {progress.status === 'processing' && 'AI가 페이지의 그림과 설명을 분석하고 있습니다.'}
+              {progress.status === 'review_pending' && '분석이 끝났습니다. 검수가 필요한 설명을 확인해 주세요.'}
+              {progress.status === 'published' && '검수와 공개가 완료되어 학생이 자료를 볼 수 있습니다.'}
+            </p>
+          </section>
+
+          <div className="progress-actions">
+            {progress.status === 'review_pending' && (
+              <Link className="primary-link-button" to={`/review/${id}`}>
+                검수 화면으로 이동
+              </Link>
+            )}
+            {progress.status === 'published' && (
+              <Link className="primary-link-button" to="/student">
+                공개된 화면 확인
+              </Link>
+            )}
+            <Link className="text-link" to="/dashboard">대시보드로 돌아가기</Link>
+          </div>
+        </>
+      )}
+    </section>
+  )
 }
 
-export default ProgressPage;
+export default ProgressPage

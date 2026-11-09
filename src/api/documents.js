@@ -1,5 +1,10 @@
+import mockDocumentDetail from '../data/documentDetailMock.json'
+import mockPageImages from '../data/mockPageImages.js'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false'
+
+export const isUsingMockApi = USE_MOCK_API
 
 const mockDocuments = [
   {
@@ -40,6 +45,10 @@ const wait = (milliseconds) => new Promise((resolve) => {
 
 function copyDocument(document) {
   return { ...document }
+}
+
+function copyDocumentDetail(document) {
+  return structuredClone(document)
 }
 
 async function request(path, options = {}) {
@@ -125,4 +134,21 @@ export async function getDocumentProgress(documentId) {
   }
 
   return copyDocument(document)
+}
+
+export async function getDocumentDetail(documentId) {
+  if (!USE_MOCK_API) {
+    return request(`/api/documents/${documentId}`)
+  }
+
+  await wait(250)
+  return copyDocumentDetail(mockDocumentDetail)
+}
+
+export function getPageImageUrl(pageId) {
+  if (USE_MOCK_API) {
+    return mockPageImages[pageId]
+  }
+
+  return `${API_BASE_URL}/api/pages/${encodeURIComponent(pageId)}/image`
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   getDocumentDetail,
@@ -40,12 +40,27 @@ function ReviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [imageError, setImageError] = useState(false)
+  const loadRequestIdRef = useRef(0)
 
   const loadDocument = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+
+    setDocument(null)
+    setSelectedPageId(null)
+    setSelectedElementId(null)
+    setIsEditing(false)
+    setDraftAlt('')
+    setDraftDescription('')
+    setStatusMessage('')
+    setLoadError('')
+    setImageError(false)
     setIsLoading(true)
 
     try {
       const nextDocument = await getDocumentDetail(id)
+      if (requestId !== loadRequestIdRef.current) return
+
       const firstPage = nextDocument.pages[0]
       const firstElement = firstPage
         ? sortReviewItems(firstPage.elements)[0]
@@ -57,15 +72,21 @@ function ReviewPage() {
       setLoadError('')
       setImageError(false)
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return
       setLoadError(error.message)
     } finally {
-      setIsLoading(false)
+      if (requestId === loadRequestIdRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [id])
 
   useEffect(() => {
     const initialLoadId = window.setTimeout(loadDocument, 0)
-    return () => window.clearTimeout(initialLoadId)
+    return () => {
+      window.clearTimeout(initialLoadId)
+      loadRequestIdRef.current += 1
+    }
   }, [loadDocument])
 
   if (isLoading && !document) {

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
+  approveElement,
+  editElement,
   getDocumentDetail,
   getPageImageUrl,
-  isUsingMockApi,
+  publishDocument as publishDocumentRequest,
 } from '../api/documents.js'
 import StatusBadge from '../components/common/StatusBadge.jsx'
 
@@ -25,7 +27,16 @@ const reviewStatusLabels = {
 const completedReviewStatuses = ['approved', 'edited']
 
 function sortReviewItems(elements) {
-  return [...elements].sort((first, second) => Number(second.flagged) - Number(first.flagged))
+  return [...elements].sort((first, second) => {
+    const firstNeedsReview = Number(first.review_status === 'needs_review')
+    const secondNeedsReview = Number(second.review_status === 'needs_review')
+
+    if (firstNeedsReview !== secondNeedsReview) {
+      return secondNeedsReview - firstNeedsReview
+    }
+
+    return Number(second.flagged) - Number(first.flagged)
+  })
 }
 
 function ReviewPage() {
@@ -40,6 +51,8 @@ function ReviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [imageError, setImageError] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const loadRequestIdRef = useRef(0)
 
   const loadDocument = useCallback(async () => {
@@ -55,6 +68,8 @@ function ReviewPage() {
     setStatusMessage('')
     setLoadError('')
     setImageError(false)
+    setActionError('')
+    setIsSubmittingAction(false)
     setIsLoading(true)
 
     try {
@@ -117,9 +132,11 @@ function ReviewPage() {
   const selectedPage = document.pages.find((page) => page.id === selectedPageId) ?? document.pages[0]
   const reviewItems = sortReviewItems(selectedPage.elements)
   const selectedElement = reviewItems.find((element) => element.id === selectedElementId) ?? reviewItems[0]
-  const requiredItems = document.pages.flatMap((page) => page.elements).filter((element) => element.flagged)
+  const allElements = document.pages.flatMap((page) => page.elements)
+  const requiredItems = allElements.filter((element) => element.flagged)
   const reviewedItems = requiredItems.filter((element) => completedReviewStatuses.includes(element.review_status))
-  const canPublish = requiredItems.every((element) => completedReviewStatuses.includes(element.review_status))
+  const pendingItems = allElements.filter((element) => element.review_status === 'needs_review')
+  const canPublish = document.status === 'review_pending' && pendingItems.length === 0
   const isPublished = document.status === 'published'
 
   function resetEditForm() {
@@ -133,6 +150,7 @@ function ReviewPage() {
     setSelectedPageId(page.id)
     setSelectedElementId(pageItems[0]?.id ?? null)
     setStatusMessage('')
+    setActionError('')
     setImageError(false)
     resetEditForm()
   }
@@ -140,32 +158,45 @@ function ReviewPage() {
   function selectElement(element) {
     setSelectedElementId(element.id)
     setStatusMessage('')
+    setActionError('')
     resetEditForm()
   }
 
-  function updateElement(elementId, changes) {
+  function replaceElement(nextElement) {
     setDocument((currentDocument) => ({
       ...currentDocument,
       pages: currentDocument.pages.map((page) => ({
         ...page,
         elements: page.elements.map((element) => (
-          element.id === elementId ? { ...element, ...changes } : element
+          element.id === nextElement.id ? nextElement : element
         )),
       })),
     }))
   }
 
-  function approveSelectedElement() {
-    if (!selectedElement) return
+  async function approveSelectedElement() {
+    if (!selectedElement || isSubmittingAction) return
 
-    updateElement(selectedElement.id, { review_status: 'approved' })
-    setStatusMessage(`${selectedElement.title} 설명을 승인했습니다.`)
+    setIsSubmittingAction(true)
+    setStatusMessage('')
+    setActionError('')
+
+    try {
+      const nextElement = await approveElement(selectedElement.id)
+      replaceElement(nextElement)
+      setStatusMessage(`${selectedElement.title} 설명을 승인했습니다.`)
+    } catch (error) {
+      setActionError(error.message)
+    } finally {
+      setIsSubmittingAction(false)
+    }
   }
 
   function startEditing() {
     setDraftAlt(selectedElement.alt)
     setDraftDescription(selectedElement.description)
     setStatusMessage('')
+    setActionError('')
     setIsEditing(true)
   }
 
@@ -174,40 +205,55 @@ function ReviewPage() {
     setStatusMessage('설명 수정을 취소했습니다.')
   }
 
-  function saveEditedElement(event) {
+  async function saveEditedElement(event) {
     event.preventDefault()
 
     const trimmedAlt = draftAlt.trim()
     const trimmedDescription = draftDescription.trim()
 
     if (!trimmedAlt || !trimmedDescription) {
-      setStatusMessage('한 줄 설명과 상세 설명을 모두 입력해 주세요.')
+      setActionError('한 줄 설명과 상세 설명을 모두 입력해 주세요.')
       return
     }
 
-    const aiOriginal = selectedElement.ai_original ?? {
-      alt: selectedElement.alt,
-      description: selectedElement.description,
-    }
+    setIsSubmittingAction(true)
+    setStatusMessage('')
+    setActionError('')
 
-    updateElement(selectedElement.id, {
-      alt: trimmedAlt,
-      description: trimmedDescription,
-      ai_original: aiOriginal,
-      review_status: 'edited',
-    })
-    resetEditForm()
-    setStatusMessage(`${selectedElement.title} 설명을 수정하고 승인했습니다.`)
+    try {
+      const nextElement = await editElement(selectedElement.id, {
+        alt: trimmedAlt,
+        description: trimmedDescription,
+      })
+      replaceElement(nextElement)
+      resetEditForm()
+      setStatusMessage(`${selectedElement.title} 설명을 수정하고 승인했습니다.`)
+    } catch (error) {
+      setActionError(error.message)
+    } finally {
+      setIsSubmittingAction(false)
+    }
   }
 
-  function publishDocument() {
-    if (!canPublish || isPublished) return
+  async function publishDocument() {
+    if (!canPublish || isPublished || isSubmittingAction) return
 
-    setDocument((currentDocument) => ({
-      ...currentDocument,
-      status: 'published',
-    }))
-    setStatusMessage('검수가 완료된 자료를 학생에게 공개했습니다.')
+    setIsSubmittingAction(true)
+    setStatusMessage('')
+    setActionError('')
+
+    try {
+      const result = await publishDocumentRequest(id)
+      setDocument((currentDocument) => ({
+        ...currentDocument,
+        status: result.status,
+      }))
+      setStatusMessage('검수가 완료된 자료를 학생에게 공개했습니다.')
+    } catch (error) {
+      setActionError(error.message)
+    } finally {
+      setIsSubmittingAction(false)
+    }
   }
 
   return (
@@ -225,10 +271,10 @@ function ReviewPage() {
           <button
             type="button"
             className="publish-button"
-            disabled={!canPublish || isPublished}
+            disabled={!canPublish || isPublished || isSubmittingAction}
             onClick={publishDocument}
           >
-            {isPublished ? '공개 완료' : '학생에게 공개'}
+            {isPublished ? '공개 완료' : isSubmittingAction ? '처리 중…' : '학생에게 공개'}
           </button>
         </div>
       </div>
@@ -237,9 +283,9 @@ function ReviewPage() {
         {statusMessage}
       </p>
 
-      {!isUsingMockApi && (
-        <p className="api-readonly-notice">
-          실제 문서와 페이지 이미지를 표시하고 있습니다. 수정·승인·공개 결과의 서버 저장은 후속 API 연결 후 지원됩니다.
+      {actionError && (
+        <p className="inline-error" role="alert">
+          {actionError}
         </p>
       )}
 
@@ -340,6 +386,7 @@ function ReviewPage() {
                       value={draftAlt}
                       onChange={(event) => setDraftAlt(event.target.value)}
                       rows="3"
+                      disabled={isSubmittingAction}
                       required
                     />
 
@@ -349,15 +396,16 @@ function ReviewPage() {
                       value={draftDescription}
                       onChange={(event) => setDraftDescription(event.target.value)}
                       rows="7"
+                      disabled={isSubmittingAction}
                       required
                     />
 
                     <div className="edit-form-actions">
-                      <button type="button" className="secondary-button" onClick={cancelEditing}>
+                      <button type="button" className="secondary-button" disabled={isSubmittingAction} onClick={cancelEditing}>
                         취소
                       </button>
-                      <button type="submit" className="approve-button">
-                        수정 후 승인
+                      <button type="submit" className="approve-button" disabled={isSubmittingAction}>
+                        {isSubmittingAction ? '저장 중…' : '수정 후 승인'}
                       </button>
                     </div>
                   </form>
@@ -382,13 +430,15 @@ function ReviewPage() {
                       <div className="table-wrapper">
                         <table>
                           <caption className="sr-only">{selectedElement.title}</caption>
-                          <thead>
-                            <tr>
-                              {selectedElement.table.headers.map((header) => (
-                                <th scope="col" key={header}>{header}</th>
-                              ))}
-                            </tr>
-                          </thead>
+                          {selectedElement.table.headers.length > 0 && (
+                            <thead>
+                              <tr>
+                                {selectedElement.table.headers.map((header, headerIndex) => (
+                                  <th scope="col" key={`${header}-${headerIndex}`}>{header}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                          )}
                           <tbody>
                             {selectedElement.table.rows.map((row, rowIndex) => (
                               <tr key={`${selectedElement.id}-${rowIndex}`}>
@@ -411,17 +461,17 @@ function ReviewPage() {
                     )}
 
                     <div className="review-actions">
-                      <button type="button" className="secondary-button" onClick={startEditing}>
+                      <button type="button" className="secondary-button" disabled={isSubmittingAction} onClick={startEditing}>
                         설명 수정
                       </button>
-                      {selectedElement.flagged && (
+                      {selectedElement.review_status === 'needs_review' && (
                         <button
                           type="button"
                           className="approve-button"
-                          disabled={completedReviewStatuses.includes(selectedElement.review_status)}
+                          disabled={isSubmittingAction}
                           onClick={approveSelectedElement}
                         >
-                          {completedReviewStatuses.includes(selectedElement.review_status) ? '검수 완료' : '이 설명 승인'}
+                          {isSubmittingAction ? '승인 중…' : '이 설명 승인'}
                         </button>
                       )}
                     </div>

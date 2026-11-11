@@ -56,9 +56,15 @@ function DashboardPage() {
             const percentage = document.total_pages === 0
               ? 0
               : Math.round((document.processed_pages / document.total_pages) * 100)
-            const destination = document.status === 'review_pending'
+            const canOpenReview = ['review_pending', 'published'].includes(document.status)
+            const destination = canOpenReview
               ? `/review/${document.id}`
               : `/progress/${document.id}`
+            const linkLabel = document.status === 'review_pending'
+              ? '검수하기'
+              : document.status === 'published'
+                ? '검수 화면 확인'
+                : '상태 확인'
 
             return (
               <article className="document-card" key={document.id}>
@@ -71,7 +77,7 @@ function DashboardPage() {
                 </div>
 
                 <div className="document-progress-summary">
-                  <span>페이지 진행률</span>
+                  <span>페이지 추출률</span>
                   <strong>{document.processed_pages}/{document.total_pages} ({percentage}%)</strong>
                 </div>
                 <progress value={document.processed_pages} max={document.total_pages || 1}>
@@ -81,20 +87,26 @@ function DashboardPage() {
                 <dl className="document-counts">
                   <div>
                     <dt>검수 필요</dt>
-                    <dd>{document.review_count}건</dd>
+                    <dd>{document.needs_review_count}건</dd>
                   </div>
                   <div>
                     <dt>학생 신고</dt>
-                    <dd>{document.student_report_count === null ? '연동 대기' : `${document.student_report_count}건`}</dd>
+                    <dd>{document.report_count}건</dd>
                   </div>
                 </dl>
 
                 <Link className="document-card-link" to={destination}>
-                  {document.status === 'review_pending' ? '검수하기' : '상태 확인'}
+                  {linkLabel}
                 </Link>
               </article>
             )
           })}
+          {documents.length === 0 && (
+            <div className="state-message" role="status">
+              <h2>등록된 강의자료가 없습니다</h2>
+              <p>홈에서 PDF 강의자료를 등록해 주세요.</p>
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -616,6 +616,18 @@ main h1 {
   background: #4f46e5;
 }
 
+.progress-step--failed {
+  border-color: #fca5a5;
+  color: #991b1b;
+  background: #fef2f2;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.progress-step--failed .progress-step-number {
+  color: #ffffff;
+  background: #dc2626;
+}
+
 .progress-card,
 .document-card {
   border: 1px solid #dbe1ea;

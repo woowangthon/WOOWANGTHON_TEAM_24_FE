@@ -66,6 +66,7 @@ function ProgressPage() {
     ? 0
     : Math.round((processedPages / totalPages) * 100)
   const isFailed = progress?.status === 'failed'
+  const isExtractionComplete = totalPages > 0 && processedPages >= totalPages
 
   return (
     <section className="progress-page">
@@ -84,22 +85,28 @@ function ProgressPage() {
         </p>
       )}
 
+      <ProgressSteps status={progress.status} />
+
       {isFailed ? (
         <section className="progress-card progress-failed" role="alert">
-          <h2>문서 분석에 실패했습니다</h2>
-          <p>잠시 후 다시 조회해 주세요. 계속 실패하면 PDF 파일을 확인해 주세요.</p>
-          <button className="secondary-button" type="button" onClick={() => loadProgress({ showLoading: true })}>
-            다시 조회
-          </button>
+          <h2>문서 분석을 완료하지 못했습니다</h2>
+          <p>
+            처리 중 오류가 발생했습니다. 다시 조회해도 실패 상태가 계속되면
+            담당자에게 문의하거나 자료를 다시 등록해 주세요.
+          </p>
+          <div className="progress-actions">
+            <button className="secondary-button" type="button" onClick={() => loadProgress({ showLoading: true })}>
+              다시 조회
+            </button>
+            <Link className="text-link" to="/dashboard">대시보드로 돌아가기</Link>
+          </div>
         </section>
       ) : (
         <>
-          <ProgressSteps status={progress.status} />
-
           <section className="progress-card" aria-labelledby="page-progress-title">
             <div className="progress-card-heading">
               <div>
-                <p className="progress-card-label">페이지 처리 현황</p>
+                <p className="progress-card-label">페이지 추출 현황</p>
                 <h2 id="page-progress-title">{processedPages} / {totalPages}페이지</h2>
               </div>
               <strong className="progress-percentage">{percentage}%</strong>
@@ -108,7 +115,10 @@ function ProgressPage() {
               {percentage}%
             </progress>
             <p className="progress-help" aria-live="polite">
-              {progress.status === 'processing' && 'AI가 페이지의 그림과 설명을 분석하고 있습니다.'}
+              {progress.status === 'processing' && !isExtractionComplete
+                && '페이지에서 이미지와 텍스트를 추출하고 있습니다.'}
+              {progress.status === 'processing' && isExtractionComplete
+                && '페이지 추출이 완료되었습니다. AI가 그림 설명을 분석하고 있습니다.'}
               {progress.status === 'review_pending' && '분석이 끝났습니다. 검수가 필요한 설명을 확인해 주세요.'}
               {progress.status === 'published' && '검수와 공개가 완료되어 학생이 자료를 볼 수 있습니다.'}
             </p>

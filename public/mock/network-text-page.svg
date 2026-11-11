@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1040" viewBox="0 0 800 1040" role="img" aria-labelledby="title desc">
+  <title id="title">TCP와 라우터 설명 강의 슬라이드</title>
+  <desc id="desc">TCP 데이터 전송과 라우터의 경로 선택을 글로 설명한 페이지</desc>
+  <rect width="800" height="1040" fill="#ffffff"/>
+  <rect x="48" y="48" width="704" height="944" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="96" y="150" font-family="sans-serif" font-size="36" font-weight="700" fill="#111827">TCP와 라우터</text>
+  <text x="96" y="260" font-family="sans-serif" font-size="25" fill="#334155">TCP는 연결을 설정한 뒤</text>
+  <text x="96" y="305" font-family="sans-serif" font-size="25" fill="#334155">데이터를 전송합니다.</text>
+  <text x="96" y="420" font-family="sans-serif" font-size="25" fill="#334155">라우터는 목적지 주소를 바탕으로</text>
+  <text x="96" y="465" font-family="sans-serif" font-size="25" fill="#334155">패킷을 전달할 경로를 선택합니다.</text>
+</svg>

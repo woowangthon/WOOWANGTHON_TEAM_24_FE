@@ -95,6 +95,29 @@ main h1 {
   font-weight: 700;
 }
 
+.api-readonly-notice {
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  font-size: 14px;
+}
+
+.page-image-error {
+  display: grid;
+  gap: 8px;
+  min-height: 260px;
+  padding: 24px;
+  place-content: center;
+  border: 1px dashed #dc2626;
+  border-radius: 8px;
+  color: #991b1b;
+  background: #fef2f2;
+  text-align: center;
+}
+
 .publish-button {
   min-height: 44px;
   padding: 10px 16px;

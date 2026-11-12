@@ -55,10 +55,12 @@ function ReviewPage() {
   const [actionError, setActionError] = useState('')
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const loadRequestIdRef = useRef(0)
+  const actionRequestIdRef = useRef(0)
 
   const loadDocument = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1
     loadRequestIdRef.current = requestId
+    actionRequestIdRef.current += 1
 
     setDocument(null)
     setSelectedPageId(null)
@@ -104,6 +106,7 @@ function ReviewPage() {
     return () => {
       window.clearTimeout(initialLoadId)
       loadRequestIdRef.current += 1
+      actionRequestIdRef.current += 1
     }
   }, [loadDocument])
 
@@ -181,18 +184,25 @@ function ReviewPage() {
   async function approveSelectedElement() {
     if (!selectedElement || isSubmittingAction) return
 
+    const requestId = actionRequestIdRef.current + 1
+    actionRequestIdRef.current = requestId
     setIsSubmittingAction(true)
     setStatusMessage('')
     setActionError('')
 
     try {
       const nextElement = await approveElement(selectedElement.id)
+      if (requestId !== actionRequestIdRef.current) return
+
       replaceElement(nextElement)
       setStatusMessage(`${selectedElement.title} 설명을 승인했습니다.`)
     } catch (error) {
+      if (requestId !== actionRequestIdRef.current) return
       setActionError(error.message)
     } finally {
-      setIsSubmittingAction(false)
+      if (requestId === actionRequestIdRef.current) {
+        setIsSubmittingAction(false)
+      }
     }
   }
 
@@ -220,6 +230,8 @@ function ReviewPage() {
       return
     }
 
+    const requestId = actionRequestIdRef.current + 1
+    actionRequestIdRef.current = requestId
     setIsSubmittingAction(true)
     setStatusMessage('')
     setActionError('')
@@ -229,34 +241,46 @@ function ReviewPage() {
         alt: trimmedAlt,
         description: trimmedDescription,
       })
+      if (requestId !== actionRequestIdRef.current) return
+
       replaceElement(nextElement)
       resetEditForm()
       setStatusMessage(`${selectedElement.title} 설명을 수정하고 승인했습니다.`)
     } catch (error) {
+      if (requestId !== actionRequestIdRef.current) return
       setActionError(error.message)
     } finally {
-      setIsSubmittingAction(false)
+      if (requestId === actionRequestIdRef.current) {
+        setIsSubmittingAction(false)
+      }
     }
   }
 
   async function publishDocument() {
     if (!canPublish || isPublished || isSubmittingAction) return
 
+    const requestId = actionRequestIdRef.current + 1
+    actionRequestIdRef.current = requestId
     setIsSubmittingAction(true)
     setStatusMessage('')
     setActionError('')
 
     try {
       const result = await publishDocumentRequest(id)
+      if (requestId !== actionRequestIdRef.current) return
+
       setDocument((currentDocument) => ({
         ...currentDocument,
         status: result.status,
       }))
       setStatusMessage('검수가 완료된 자료를 학생에게 공개했습니다.')
     } catch (error) {
+      if (requestId !== actionRequestIdRef.current) return
       setActionError(error.message)
     } finally {
-      setIsSubmittingAction(false)
+      if (requestId === actionRequestIdRef.current) {
+        setIsSubmittingAction(false)
+      }
     }
   }
 

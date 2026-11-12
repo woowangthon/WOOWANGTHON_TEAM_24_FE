@@ -15,8 +15,8 @@ const mockDocuments = [
     status: 'processing',
     processed_pages: 2,
     total_pages: 8,
-    review_count: 0,
-    student_report_count: null,
+    needs_review_count: 0,
+    report_count: 0,
   },
   {
     id: 2,
@@ -25,8 +25,8 @@ const mockDocuments = [
     status: 'review_pending',
     processed_pages: 12,
     total_pages: 12,
-    review_count: 3,
-    student_report_count: null,
+    needs_review_count: 3,
+    report_count: 0,
   },
   {
     id: 3,
@@ -35,12 +35,13 @@ const mockDocuments = [
     status: 'published',
     processed_pages: 16,
     total_pages: 16,
-    review_count: 0,
-    student_report_count: 2,
+    needs_review_count: 0,
+    report_count: 2,
   },
 ]
 
 const mockCompletedExtractionPolls = new Map()
+const mockDocumentDetails = new Map()
 
 const wait = (milliseconds) => new Promise((resolve) => {
   window.setTimeout(resolve, milliseconds)
@@ -52,6 +53,56 @@ function copyDocument(document) {
 
 function copyDocumentDetail(document) {
   return structuredClone(document)
+}
+
+function getMockDocumentDetail(documentId) {
+  const numericDocumentId = Number(documentId)
+
+  if (!mockDocumentDetails.has(numericDocumentId)) {
+    const document = copyDocumentDetail(mockDocumentDetail)
+    const summary = mockDocuments.find(({ id }) => id === numericDocumentId)
+
+    document.id = numericDocumentId
+    document.status = summary?.status ?? document.status
+
+    document.pages.forEach((page) => {
+      page.elements.forEach((element) => {
+        element.ai_original ??= {
+          alt: element.alt,
+          description: element.description,
+        }
+      })
+    })
+
+    mockDocumentDetails.set(numericDocumentId, document)
+  }
+
+  return mockDocumentDetails.get(numericDocumentId)
+}
+
+function findMockElement(elementId) {
+  for (const document of mockDocumentDetails.values()) {
+    for (const page of document.pages) {
+      const element = page.elements.find(({ id }) => id === Number(elementId))
+
+      if (element) {
+        return { document, element }
+      }
+    }
+  }
+
+  return null
+}
+
+function updateMockDocumentCount(document) {
+  const summary = mockDocuments.find(({ id }) => id === document.id)
+
+  if (!summary) return
+
+  summary.needs_review_count = document.pages
+    .flatMap((page) => page.elements)
+    .filter((element) => element.review_status === 'needs_review')
+    .length
 }
 
 async function request(path, options = {}) {
@@ -96,8 +147,8 @@ export async function uploadDocument({ course, title, file }) {
     status: 'processing',
     processed_pages: 0,
     total_pages: 8,
-    review_count: 0,
-    student_report_count: null,
+    needs_review_count: 0,
+    report_count: 0,
   })
 
   return { id: nextId }
@@ -135,13 +186,13 @@ export async function getDocumentProgress(documentId) {
       } else {
         mockCompletedExtractionPolls.delete(document.id)
         document.status = 'review_pending'
-        document.review_count = 2
+        document.needs_review_count = 3
       }
     }
 
     if (document.total_pages === 0) {
       document.status = 'review_pending'
-      document.review_count = 2
+      document.needs_review_count = 3
     }
   }
 
@@ -154,7 +205,108 @@ export async function getDocumentDetail(documentId) {
   }
 
   await wait(250)
-  return copyDocumentDetail(mockDocumentDetail)
+  return copyDocumentDetail(getMockDocumentDetail(documentId))
+}
+
+export async function approveElement(elementId) {
+  if (!USE_MOCK_API) {
+    return request(`/api/elements/${encodeURIComponent(elementId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
+    })
+  }
+
+  await wait(250)
+  const result = findMockElement(elementId)
+
+  if (!result) {
+    throw new Error('그림을 찾을 수 없습니다.')
+  }
+
+  const { document, element } = result
+
+  if (!element.alt.trim() || !element.description.trim()) {
+    throw new Error('한 줄 설명과 상세 설명이 비어 있으면 승인할 수 없습니다. 설명을 작성한 뒤 수정 후 승인해 주세요.')
+  }
+
+  if (element.review_status !== 'edited') {
+    element.review_status = 'approved'
+  }
+
+  updateMockDocumentCount(document)
+  return structuredClone(element)
+}
+
+export async function editElement(elementId, { alt, description }) {
+  if (!USE_MOCK_API) {
+    return request(`/api/elements/${encodeURIComponent(elementId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'edit',
+        alt,
+        description,
+      }),
+    })
+  }
+
+  await wait(250)
+  const trimmedAlt = alt?.trim()
+  const trimmedDescription = description?.trim()
+
+  if (!trimmedAlt || !trimmedDescription) {
+    throw new Error('한 줄 설명과 상세 설명은 공백일 수 없습니다.')
+  }
+
+  const result = findMockElement(elementId)
+
+  if (!result) {
+    throw new Error('그림을 찾을 수 없습니다.')
+  }
+
+  const { document, element } = result
+  element.alt = trimmedAlt
+  element.description = trimmedDescription
+  element.review_status = 'edited'
+  updateMockDocumentCount(document)
+
+  return structuredClone(element)
+}
+
+export async function publishDocument(documentId) {
+  if (!USE_MOCK_API) {
+    return request(`/api/documents/${encodeURIComponent(documentId)}/publish`, {
+      method: 'POST',
+    })
+  }
+
+  await wait(250)
+  const numericDocumentId = Number(documentId)
+  const document = getMockDocumentDetail(numericDocumentId)
+
+  if (document.status === 'published') {
+    throw new Error('이미 공개된 문서입니다.')
+  }
+
+  if (document.status !== 'review_pending') {
+    throw new Error('분석이 끝난 문서만 공개할 수 있어요.')
+  }
+
+  const remaining = document.pages
+    .flatMap((page) => page.elements)
+    .filter((element) => element.review_status === 'needs_review')
+    .length
+
+  if (remaining > 0) {
+    throw new Error(`검수 필요 그림이 ${remaining}건 남아 있어요.`)
+  }
+
+  document.status = 'published'
+  const summary = mockDocuments.find(({ id }) => id === numericDocumentId)
+  if (summary) summary.status = 'published'
+
+  return { status: 'published' }
 }
 
 export function getPageImageUrl(pageId) {

@@ -91,7 +91,12 @@ function App() {
   return (
     <BrowserRouter>
       <header className="site-header">
-        <NavLink className="brand" to="/">보이는 강의</NavLink>
+        <NavLink
+          className="brand"
+          to={role === 'reviewer' ? '/dashboard' : role === 'student' ? '/student' : '/'}
+        >
+          보이는 강의
+        </NavLink>
         <nav aria-label="주요 메뉴">
           {role === 'reviewer' && (
             <>
@@ -108,7 +113,14 @@ function App() {
 
       <main>
         <Routes>
-          <Route path="/" element={<RoleSelection onLogin={login} />} />
+          <Route
+            path="/"
+            element={
+              role
+                ? <Navigate to={role === 'reviewer' ? '/dashboard' : '/student'} replace />
+                : <RoleSelection onLogin={login} />
+            }
+          />
           <Route path="/upload" element={reviewerOnly(<HomePage />)} />
           <Route path="/dashboard" element={reviewerOnly(<DashboardPage />)} />
           <Route path="/progress/:id" element={reviewerOnly(<ProgressPage />)} />

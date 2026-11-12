@@ -104,7 +104,7 @@ function DashboardPage() {
           {documents.length === 0 && (
             <div className="state-message" role="status">
               <h2>등록된 강의자료가 없습니다</h2>
-              <p>홈에서 PDF 강의자료를 등록해 주세요.</p>
+              <p>자료 등록 화면에서 PDF 강의자료를 등록해 주세요.</p>
             </div>
           )}
         </div>

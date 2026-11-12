@@ -4,11 +4,19 @@ import { getDocumentProgress } from '../api/documents.js'
 import ProgressSteps from '../components/common/ProgressSteps.jsx'
 import StatusBadge from '../components/common/StatusBadge.jsx'
 
+function formatElapsedTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
 function ProgressPage() {
   const { id } = useParams()
   const [progress, setProgress] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [analysisTimer, setAnalysisTimer] = useState({ documentId: null, elapsedSeconds: 0 })
 
   const loadProgress = useCallback(async ({ showLoading = false } = {}) => {
     if (showLoading) {
@@ -44,6 +52,32 @@ function ProgressPage() {
     return () => window.clearInterval(intervalId)
   }, [loadProgress, progress?.status])
 
+  const processedPages = progress?.processed_pages ?? 0
+  const totalPages = progress?.total_pages ?? 0
+  const isExtractionComplete = totalPages > 0 && processedPages >= totalPages
+  const isAnalysisRunning = progress?.status === 'processing' && isExtractionComplete
+
+  useEffect(() => {
+    if (!isAnalysisRunning) {
+      return undefined
+    }
+
+    const startedAt = Date.now()
+    const updateElapsedTime = () => {
+      setAnalysisTimer({
+        documentId: id,
+        elapsedSeconds: Math.floor((Date.now() - startedAt) / 1000),
+      })
+    }
+    const initialTimerId = window.setTimeout(updateElapsedTime, 0)
+    const elapsedTimerId = window.setInterval(updateElapsedTime, 1000)
+
+    return () => {
+      window.clearTimeout(initialTimerId)
+      window.clearInterval(elapsedTimerId)
+    }
+  }, [id, isAnalysisRunning])
+
   if (isLoading && !progress) {
     return <p className="state-message" role="status">진행 상태를 불러오는 중입니다.</p>
   }
@@ -60,13 +94,11 @@ function ProgressPage() {
     )
   }
 
-  const processedPages = progress?.processed_pages ?? 0
-  const totalPages = progress?.total_pages ?? 0
   const percentage = totalPages === 0
     ? 0
     : Math.round((processedPages / totalPages) * 100)
   const isFailed = progress?.status === 'failed'
-  const isExtractionComplete = totalPages > 0 && processedPages >= totalPages
+  const failedStage = isExtractionComplete ? 'AI 설명 분석' : '페이지 추출'
 
   return (
     <section className="progress-page">
@@ -74,7 +106,7 @@ function ProgressPage() {
         <div>
           <p className="eyebrow">문서 #{id}</p>
           <h1>강의자료 처리 현황</h1>
-          <p>페이지를 벗어나지 않아도 2초마다 진행 상태가 자동으로 갱신됩니다.</p>
+          <p>처리 중에는 페이지를 벗어나지 않아도 2초마다 진행 상태가 자동으로 갱신됩니다.</p>
         </div>
         <StatusBadge status={progress.status} />
       </div>
@@ -85,13 +117,17 @@ function ProgressPage() {
         </p>
       )}
 
-      <ProgressSteps status={progress.status} />
+      <ProgressSteps
+        status={progress.status}
+        processedPages={processedPages}
+        totalPages={totalPages}
+      />
 
       {isFailed ? (
         <section className="progress-card progress-failed" role="alert">
-          <h2>문서 분석을 완료하지 못했습니다</h2>
+          <h2>{failedStage}을 완료하지 못했습니다</h2>
           <p>
-            처리 중 오류가 발생했습니다. 다시 조회해도 실패 상태가 계속되면
+            {failedStage} 중 오류가 발생했습니다. 다시 조회해도 실패 상태가 계속되면
             담당자에게 문의하거나 자료를 다시 등록해 주세요.
           </p>
           <div className="progress-actions">
@@ -122,6 +158,17 @@ function ProgressPage() {
               {progress.status === 'review_pending' && '분석이 끝났습니다. 검수가 필요한 설명을 확인해 주세요.'}
               {progress.status === 'published' && '검수와 공개가 완료되어 학생이 자료를 볼 수 있습니다.'}
             </p>
+            {isAnalysisRunning && (
+              <div className="analysis-wait-status" role="status">
+                <span className="analysis-spinner" aria-hidden="true" />
+                <div>
+                  <strong>AI 설명을 분석하고 있습니다</strong>
+                  <p>
+                    경과 시간 {formatElapsedTime(analysisTimer.documentId === id ? analysisTimer.elapsedSeconds : 0)} · 페이지 수에 따라 몇 분 정도 걸릴 수 있습니다.
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           <div className="progress-actions">

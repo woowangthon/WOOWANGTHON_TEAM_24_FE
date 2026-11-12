@@ -1,18 +1,20 @@
 const steps = [
   { key: 'uploaded', label: '업로드', description: 'PDF 접수 완료' },
-  { key: 'processing', label: '분석 중', description: '페이지와 그림 분석' },
+  { key: 'extracting', label: '페이지 추출', description: '이미지와 텍스트 추출' },
+  { key: 'analyzing', label: 'AI 분석', description: '그림 설명 생성' },
   { key: 'review_pending', label: '검수 대기', description: '설명 확인 및 승인' },
   { key: 'published', label: '공개', description: '학생에게 제공' },
 ]
 
-const currentStepIndex = {
-  processing: 1,
-  failed: 1,
-  review_pending: 2,
-  published: 3,
-}
-
-function ProgressSteps({ status }) {
+function ProgressSteps({ status, processedPages = 0, totalPages = 0 }) {
+  const isExtractionComplete = processedPages >= totalPages
+  const processingStepIndex = isExtractionComplete ? 2 : 1
+  const currentStepIndex = {
+    processing: processingStepIndex,
+    failed: processingStepIndex,
+    review_pending: 3,
+    published: 4,
+  }
   const activeIndex = currentStepIndex[status] ?? 0
 
   return (

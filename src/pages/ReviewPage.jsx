@@ -1,7 +1,11 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import {
+  getDocumentDetail,
+  getPageImageUrl,
+  isUsingMockApi,
+} from '../api/documents.js'
 import StatusBadge from '../components/common/StatusBadge.jsx'
-import mockDocument from '../data/documentDetailMock.json'
-import mockPageImages from '../data/mockPageImages.js'
 
 const elementTypeLabels = {
   diagram: '도식',
@@ -25,17 +29,92 @@ function sortReviewItems(elements) {
 }
 
 function ReviewPage() {
-  const firstPage = mockDocument.pages[0]
-  const firstElement = sortReviewItems(firstPage.elements)[0]
-  const [document, setDocument] = useState(mockDocument)
-  const [selectedPageId, setSelectedPageId] = useState(firstPage.id)
-  const [selectedElementId, setSelectedElementId] = useState(firstElement?.id ?? null)
+  const { id } = useParams()
+  const [document, setDocument] = useState(null)
+  const [selectedPageId, setSelectedPageId] = useState(null)
+  const [selectedElementId, setSelectedElementId] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [draftAlt, setDraftAlt] = useState('')
   const [draftDescription, setDraftDescription] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [imageError, setImageError] = useState(false)
+  const loadRequestIdRef = useRef(0)
 
-  const selectedPage = document.pages.find((page) => page.id === selectedPageId)
+  const loadDocument = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+
+    setDocument(null)
+    setSelectedPageId(null)
+    setSelectedElementId(null)
+    setIsEditing(false)
+    setDraftAlt('')
+    setDraftDescription('')
+    setStatusMessage('')
+    setLoadError('')
+    setImageError(false)
+    setIsLoading(true)
+
+    try {
+      const nextDocument = await getDocumentDetail(id)
+      if (requestId !== loadRequestIdRef.current) return
+
+      const firstPage = nextDocument.pages[0]
+      const firstElement = firstPage
+        ? sortReviewItems(firstPage.elements)[0]
+        : null
+
+      setDocument(nextDocument)
+      setSelectedPageId(firstPage?.id ?? null)
+      setSelectedElementId(firstElement?.id ?? null)
+      setLoadError('')
+      setImageError(false)
+    } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return
+      setLoadError(error.message)
+    } finally {
+      if (requestId === loadRequestIdRef.current) {
+        setIsLoading(false)
+      }
+    }
+  }, [id])
+
+  useEffect(() => {
+    const initialLoadId = window.setTimeout(loadDocument, 0)
+    return () => {
+      window.clearTimeout(initialLoadId)
+      loadRequestIdRef.current += 1
+    }
+  }, [loadDocument])
+
+  if (isLoading && !document) {
+    return <p className="state-message" role="status">검수 자료를 불러오는 중입니다.</p>
+  }
+
+  if (loadError && !document) {
+    return (
+      <section className="state-message state-message--error" role="alert">
+        <h1>검수 자료를 불러오지 못했습니다</h1>
+        <p>{loadError}</p>
+        <button className="secondary-button" type="button" onClick={loadDocument}>
+          다시 시도
+        </button>
+      </section>
+    )
+  }
+
+  if (!document?.pages?.length) {
+    return (
+      <section className="state-message" role="status">
+        <h1>검수할 페이지가 없습니다</h1>
+        <p>문서 분석 결과에 페이지가 포함되지 않았습니다.</p>
+      </section>
+    )
+  }
+
+  const selectedPage = document.pages.find((page) => page.id === selectedPageId) ?? document.pages[0]
   const reviewItems = sortReviewItems(selectedPage.elements)
   const selectedElement = reviewItems.find((element) => element.id === selectedElementId) ?? reviewItems[0]
   const requiredItems = document.pages.flatMap((page) => page.elements).filter((element) => element.flagged)
@@ -54,6 +133,7 @@ function ReviewPage() {
     setSelectedPageId(page.id)
     setSelectedElementId(pageItems[0]?.id ?? null)
     setStatusMessage('')
+    setImageError(false)
     resetEditForm()
   }
 
@@ -157,6 +237,12 @@ function ReviewPage() {
         {statusMessage}
       </p>
 
+      {!isUsingMockApi && (
+        <p className="api-readonly-notice">
+          실제 문서와 페이지 이미지를 표시하고 있습니다. 수정·승인·공개 결과의 서버 저장은 후속 API 연결 후 지원됩니다.
+        </p>
+      )}
+
       <div className="review-workspace">
         <nav className="review-panel page-navigation" aria-label="문서 페이지 선택">
           <div className="panel-heading">
@@ -185,11 +271,19 @@ function ReviewPage() {
             <h2 id="original-heading">원본 페이지</h2>
             <span>{selectedPage.page_no}페이지</span>
           </div>
-          <img
-            className="page-preview"
-            src={mockPageImages[selectedPage.id]}
-            alt={`${selectedPage.page_no}페이지 원본 강의자료`}
-          />
+          {imageError ? (
+            <div className="page-image-error" role="alert">
+              <strong>페이지 이미지를 불러오지 못했습니다.</strong>
+              <span>백엔드 서버와 이미지 API 상태를 확인해 주세요.</span>
+            </div>
+          ) : (
+            <img
+              className="page-preview"
+              src={getPageImageUrl(selectedPage.id)}
+              alt={`${selectedPage.page_no}페이지 원본 강의자료`}
+              onError={() => setImageError(true)}
+            />
+          )}
           <p className="page-original-text">
             <strong>페이지 원문</strong>
             <span>{selectedPage.text}</span>

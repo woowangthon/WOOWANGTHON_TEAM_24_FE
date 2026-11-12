@@ -3,6 +3,7 @@ import mockPageImages from '../data/mockPageImages.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false'
+const MOCK_AI_ANALYSIS_POLLS = 3
 
 export const isUsingMockApi = USE_MOCK_API
 
@@ -38,6 +39,8 @@ const mockDocuments = [
     student_report_count: 2,
   },
 ]
+
+const mockCompletedExtractionPolls = new Map()
 
 const wait = (milliseconds) => new Promise((resolve) => {
   window.setTimeout(resolve, milliseconds)
@@ -122,12 +125,21 @@ export async function getDocumentProgress(documentId) {
   }
 
   if (document.status === 'processing') {
-    document.processed_pages = Math.min(
-      document.processed_pages + 1,
-      document.total_pages,
-    )
+    if (document.processed_pages < document.total_pages) {
+      document.processed_pages += 1
+    } else {
+      const completedPolls = mockCompletedExtractionPolls.get(document.id) ?? 0
 
-    if (document.processed_pages === document.total_pages) {
+      if (completedPolls < MOCK_AI_ANALYSIS_POLLS) {
+        mockCompletedExtractionPolls.set(document.id, completedPolls + 1)
+      } else {
+        mockCompletedExtractionPolls.delete(document.id)
+        document.status = 'review_pending'
+        document.review_count = 2
+      }
+    }
+
+    if (document.total_pages === 0) {
       document.status = 'review_pending'
       document.review_count = 2
     }

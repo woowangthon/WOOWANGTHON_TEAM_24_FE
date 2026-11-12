@@ -9,8 +9,6 @@ import StudentPage from './pages/StudentPage.jsx'
 const navigation = [
   { to: '/', label: '홈', end: true },
   { to: '/dashboard', label: '대시보드' },
-  { to: '/progress/1', label: '진행 화면' },
-  { to: '/review/1', label: '검수 화면' },
   { to: '/student', label: '학생 화면' },
 ]
 

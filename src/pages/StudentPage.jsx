@@ -4,7 +4,19 @@ import mockDocumentDetail from '../data/documentDetailMock.json'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false'
-const STUDENT_VISIBLE_STATUSES = new Set(['approved', 'edited', 'auto_passed'])
+const STUDENT_VISIBLE_STATUSES = new Set([
+  'approved',
+  'edited',
+  'auto_passed',
+  'needs_review',
+])
+
+const STUDENT_STATUS_LABELS = {
+  approved: '검수자 확인',
+  edited: '검수자 확인',
+  auto_passed: 'AI 설명(자동 통과)',
+  needs_review: '검수자가 다시 확인 중',
+}
 
 const wait = (milliseconds) => new Promise((resolve) => {
   window.setTimeout(resolve, milliseconds)
@@ -35,15 +47,6 @@ function createPublishedMockDocument() {
   return {
     ...studentDocument,
     status: 'published',
-    pages: studentDocument.pages.map((page) => ({
-      ...page,
-      elements: page.elements.map((element) => ({
-        ...element,
-        review_status: element.review_status === 'needs_review'
-          ? 'approved'
-          : element.review_status,
-      })),
-    })),
   }
 }
 
@@ -107,16 +110,14 @@ function validatePublishedDocument(studentDocument) {
 }
 
 function getStatusLabel(status) {
-  return status === 'auto_passed'
-    ? 'AI 설명(자동 통과)'
-    : '검수자 확인'
+  return STUDENT_STATUS_LABELS[status] ?? status
 }
 
 function SemanticTable({ element }) {
   const headers = Array.isArray(element.table?.headers) ? element.table.headers : []
   const rows = Array.isArray(element.table?.rows) ? element.table.rows : []
 
-  if (headers.length === 0 || rows.length === 0) {
+  if (rows.length === 0) {
     return <p>표 데이터가 없습니다.</p>
   }
 
@@ -124,13 +125,15 @@ function SemanticTable({ element }) {
     <div className="table-wrapper">
       <table>
         <caption>{element.title} 데이터</caption>
-        <thead>
-          <tr>
-            {headers.map((header, index) => (
-              <th scope="col" key={`${header}-${index}`}>{header}</th>
-            ))}
-          </tr>
-        </thead>
+        {headers.length > 0 && (
+          <thead>
+            <tr>
+              {headers.map((header, index) => (
+                <th scope="col" key={`${header}-${index}`}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+        )}
         <tbody>
           {rows.map((row, rowIndex) => (
             <tr key={`row-${rowIndex}`}>
@@ -303,14 +306,15 @@ function StudentPage() {
       <div className="student-pages">
         {studentDocument.pages.map((page) => {
           const elements = Array.isArray(page.elements) ? page.elements : []
+          const pageHeadingId = `student-page-${page.page_no}`
 
           return (
             <section
               className="review-panel"
-              key={page.id}
-              aria-labelledby={`student-page-${page.id}`}
+              key={page.page_no}
+              aria-labelledby={pageHeadingId}
             >
-              <h2 id={`student-page-${page.id}`}>{page.page_no}페이지</h2>
+              <h2 id={pageHeadingId}>{page.page_no}페이지</h2>
 
               <div className="page-original-text">
                 <strong>페이지 원문 텍스트</strong>

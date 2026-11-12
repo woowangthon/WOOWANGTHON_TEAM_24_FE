@@ -190,21 +190,31 @@ function StudentPage() {
   const location = useLocation()
   const documentId = new URLSearchParams(location.search).get('document')
   const headingRef = useRef(null)
+  const loadRequestIdRef = useRef(0)
   const [documents, setDocuments] = useState([])
   const [studentDocument, setStudentDocument] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
   const loadContent = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+
     setIsLoading(true)
 
     try {
       if (documentId) {
         const nextDocument = await getStudentDocumentDetail(documentId)
+
+        if (requestId !== loadRequestIdRef.current) return
+
         validatePublishedDocument(nextDocument)
         setStudentDocument(nextDocument)
       } else {
         const nextDocuments = await getStudentDocuments()
+
+        if (requestId !== loadRequestIdRef.current) return
+
         setDocuments(nextDocuments.filter((document) => (
           !document.status || document.status === 'published'
         )))
@@ -213,16 +223,24 @@ function StudentPage() {
 
       setError('')
     } catch (loadError) {
+      if (requestId !== loadRequestIdRef.current) return
+
       setStudentDocument(null)
       setError(loadError.message)
     } finally {
-      setIsLoading(false)
+      if (requestId === loadRequestIdRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [documentId])
 
   useEffect(() => {
     const initialLoadId = window.setTimeout(loadContent, 0)
-    return () => window.clearTimeout(initialLoadId)
+
+    return () => {
+      window.clearTimeout(initialLoadId)
+      loadRequestIdRef.current += 1
+    }
   }, [loadContent])
 
   useEffect(() => {

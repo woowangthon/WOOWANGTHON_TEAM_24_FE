@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import {
   approveElement,
   editElement,
@@ -41,6 +41,7 @@ function sortReviewItems(elements) {
 
 function ReviewPage() {
   const { id } = useParams()
+  const [, setSearchParams] = useSearchParams()
   const [document, setDocument] = useState(null)
   const [selectedPageId, setSelectedPageId] = useState(null)
   const [selectedElementId, setSelectedElementId] = useState(null)
@@ -76,13 +77,15 @@ function ReviewPage() {
       const nextDocument = await getDocumentDetail(id)
       if (requestId !== loadRequestIdRef.current) return
 
-      const firstPage = nextDocument.pages[0]
-      const firstElement = firstPage
-        ? sortReviewItems(firstPage.elements)[0]
+      const requestedPageNo = Number(new URLSearchParams(window.location.search).get('page'))
+      const initialPage = nextDocument.pages.find((page) => page.page_no === requestedPageNo)
+        ?? nextDocument.pages[0]
+      const firstElement = initialPage
+        ? sortReviewItems(initialPage.elements)[0]
         : null
 
       setDocument(nextDocument)
-      setSelectedPageId(firstPage?.id ?? null)
+      setSelectedPageId(initialPage?.id ?? null)
       setSelectedElementId(firstElement?.id ?? null)
       setLoadError('')
       setImageError(false)
@@ -149,6 +152,7 @@ function ReviewPage() {
     const pageItems = sortReviewItems(page.elements)
     setSelectedPageId(page.id)
     setSelectedElementId(pageItems[0]?.id ?? null)
+    setSearchParams({ page: String(page.page_no) }, { replace: true })
     setStatusMessage('')
     setActionError('')
     setImageError(false)

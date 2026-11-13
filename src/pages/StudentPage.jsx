@@ -188,6 +188,7 @@ function FigureDescription({ element }) {
         elementId={element.id}
         elementTitle={element.title}
         onReported={() => setWasReported(true)}
+      
       />
     </article>
   )

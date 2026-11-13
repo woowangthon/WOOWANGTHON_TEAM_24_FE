@@ -66,7 +66,7 @@ function ReportForm({ elementId, elementTitle, onReported }) {
           setSuccess('')
         }}
       >
-        설명 신고
+        설명이 이상해요
       </button>
 
       {USE_MOCK_API && (

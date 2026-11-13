@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import mockDocumentDetail from '../data/documentDetailMock.json'
+import ReportForm from './ReportForm'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false'
@@ -150,13 +151,15 @@ function SemanticTable({ element }) {
 
 function FigureDescription({ element }) {
   const headingId = `student-element-${element.id}`
+  const [wasReported, setWasReported] = useState(false)
+  const displayStatus = wasReported ? 'needs_review' : element.review_status
 
   return (
     <article className="description-content" aria-labelledby={headingId}>
       <div className="description-title-row">
         <h3 id={headingId}>{element.title}</h3>
-        <span className={`status-badge status-badge--${element.review_status}`}>
-          {getStatusLabel(element.review_status)}
+        <span className={`status-badge status-badge--${displayStatus}`}>
+          {getStatusLabel(displayStatus)}
         </span>
       </div>
 
@@ -181,7 +184,11 @@ function FigureDescription({ element }) {
         <SemanticTable element={element} />
       )}
 
-      {/* F9 신고 컴포넌트는 element.id를 사용해 이 위치에 연결한다. */}
+      <ReportForm
+        elementId={element.id}
+        elementTitle={element.title}
+        onReported={() => setWasReported(true)}
+      />
     </article>
   )
 }

@@ -57,7 +57,7 @@ function ReportForm({ elementId, elementTitle, onReported }) {
       <button
         type="button"
         className="secondary-button"
-        aria-label={`${elementTitle} 설명 신고`}
+        aria-label={`${elementTitle} 설명이 이상해요`}
         aria-expanded={isOpen}
         disabled={USE_MOCK_API || isSubmitting}
         onClick={() => {
